@@ -27,6 +27,33 @@ function utils.resetVelocity(part: BasePart): ()
     part.AssemblyAngularVelocity = Vector3.zero
 end
 
+function utils.simulationBoost(): { stop: () -> () }
+    local targetRadius = 10000
+    local isRunning = true
+    local thread = task.spawn(function()
+        while isRunning do
+            task.wait(0.5)
+            if not localPlayer or not localPlayer.Parent then
+                continue
+            end
+            pcall(function()
+                sethiddenproperty(localPlayer, "SimulationRadius", targetRadius)
+                sethiddenproperty(localPlayer, "MaximumSimulationRadius", targetRadius)
+            end)
+        end
+    end)
+    local controller = {}
+    function controller.stop()
+        if not isRunning then return end
+        isRunning = false
+        if thread then
+            task.cancel(thread)
+            thread = nil
+        end
+    end
+    return controller
+end
+
 function utils.getCFrame(target: (Vector3 | CFrame | Instance)?): CFrame?
     if not target then return nil end
     local targetType = typeof(target)
@@ -201,7 +228,7 @@ end
     -- Add: Functionality
 end]]
 
-function utils.attachPhysics(objects: (Instance | { Instance })?, initialTarget: Vector3 | CFrame | Instance): table?
+function utils.attachPhysics(objects: (Instance | { Instance })?, initialTarget: Vector3 | CFrame | Instance): { update: (Vector3 | CFrame | Instance) -> (), stop: () -> () }?
     if not objects then return nil end
     local objectsList: { Instance } = typeof(objects) == "Instance" and { objects } or (objects :: { Instance })
     local targetCFrame = utils.getCFrame(initialTarget) or CFrame.identity
@@ -263,14 +290,14 @@ function utils.attachPhysics(objects: (Instance | { Instance })?, initialTarget:
             end
         end
     end)
-    function controller.update(newTarget: Vector3 | CFrame | Instance)
+    function controller.update(newTarget: Vector3 | CFrame | Instance): ()
         if isStopped then return end
         local newCFrame = utils.getCFrame(newTarget)
         if newCFrame then
             targetAnchor.CFrame = newCFrame
         end
     end
-    function controller.stop()
+    function controller.stop(): ()
         if isStopped then return end
         isStopped = true
         utils.disconnect(heartbeatConn)
