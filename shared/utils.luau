@@ -27,19 +27,18 @@ function utils.resetVelocity(part: BasePart): ()
     part.AssemblyAngularVelocity = Vector3.zero
 end
 
-function utils.simulationBoost(): { stop: () -> () }
-    local targetRadius = 10000
+function utils.simulationBoost(radius: number?): { stop: () -> () }
+    local targetRadius = radius or 10000
     local isRunning = true
-    local thread = task.spawn(function()
+    local thread: thread?
+    thread = task.spawn(function()
         while isRunning do
-            task.wait(0.5)
-            if not localPlayer or not localPlayer.Parent then
-                continue
-            end
+            if not localPlayer or not localPlayer.Parent then break end
             pcall(function()
                 sethiddenproperty(localPlayer, "SimulationRadius", targetRadius)
                 sethiddenproperty(localPlayer, "MaximumSimulationRadius", targetRadius)
             end)
+            task.wait(10)
         end
     end)
     local controller = {}
@@ -48,7 +47,6 @@ function utils.simulationBoost(): { stop: () -> () }
         isRunning = false
         if thread then
             task.cancel(thread)
-            thread = nil
         end
     end
     return controller
